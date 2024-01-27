@@ -1,0 +1,93 @@
+﻿@page "/holidayDate"
+
+@attribute [StreamRendering]
+@rendermode RenderMode.InteractiveServer
+
+<PageTitle>Holidays</PageTitle>
+
+<h3>Holidays</h3>
+
+<div class="mb-3">
+    <h3>Год</h3>
+    <select @onchange=HandleYearChange>
+        @for (int i = DateTime.Now.Year; i >= DateTime.Now.Year - 4; i--)
+        {
+            <option value="@i">@i</option>
+        }
+    </select>
+
+    <h3>Страна</h3>
+    <select @onchange=HandleCountryChange>
+        @foreach (var i in selectedModel.Countries)
+        {
+            <option value="@i">@i</option>
+        }
+    </select>
+</div>
+
+@* <p>@selectedModel.SelectedYear</p>
+<p>@selectedModel.SelectedCounty</p> *@
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>LocalName</th>
+            <th>Name</th>
+            <th>Fixed</th>
+            <th>Global</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var row in holidays)
+        {
+            <tr>
+                <td>@row.Date.ToShortDateString()</td>
+                <td>@row.LocalName</td>
+                <td>@row.Name</td>
+                <td>@row.Fixed</td>
+                <td>@row.Global</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private List<Holiday> holidays = new List<Holiday>();
+
+    private SelectedModel selectedModel = new SelectedModel()
+        {
+            SelectedYear = DateTime.Now.Year,
+            SelectedCountry = "RU",
+            Countries = ["RU", "AT", "AL", "AD"]
+        };
+
+    protected override Task OnInitializedAsync() => LoadHolidays(selectedModel);
+
+    private async Task HandleYearChange(ChangeEventArgs e)
+    {
+        selectedModel.SelectedYear = Convert.ToInt32(e.Value);
+
+        await LoadHolidays(selectedModel);
+    }
+
+    private async Task HandleCountryChange(ChangeEventArgs e)
+    {
+        selectedModel.SelectedCountry = e.Value.ToString();
+
+        await LoadHolidays(selectedModel);
+    }
+
+    private async Task LoadHolidays(SelectedModel selected)
+    {
+        using (HttpClient httpClient = new HttpClient())
+        {
+            using (HttpResponseMessage response = await httpClient.GetAsync($"https://date.nager.at/api/v3/PublicHolidays/{selected.SelectedYear}/{selected.SelectedCountry}"))
+            {
+                string apiResponse = await response.Content.ReadAsStringAsync();
+
+                holidays = JsonConvert.DeserializeObject<List<Holiday>>(apiResponse);
+            }
+        }
+    }
+}
